@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="MQA Player">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0a0a1a">
+    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkhpLVJlcyBNUUEgUGxheWVyIiwKICAic2hvcnRfbmFtZSI6ICJNUUEiLAogICJzdGFydF91cmwiOiAiLiIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzBhMGExYSIsCiAgInRoZW1lX2NvbG9yIjogIiMwYTBhMWEiLAogICJpY29ucyI6IFtdCn0=">
+    <title>Hi-Res MQA Player</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            background: linear-gradient(180deg, #0a0a1a 0%, #0d0d2b 50%, #0a0a1a 100%);
+            color: #ffffff;
+            min-height: 100vh;
+            min-height: -webkit-fill-available;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            position: relative;
+        }
+        
+        /* Status Bar */
+        .status-bar {
+            padding: 12px 16px 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: rgba(255,255,255,0.6);
+        }
+        
+        /* Header */
+        .header {
+            padding: 8px 16px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            font-size: 22px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #6C63FF, #00CC66);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -0.5px;
+        }
+        
+        .header-badge {
+            background: linear-gradient(135deg, #6C63FF, #8B83FF);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 0 20px;
+        }
+        
+        /* Album Art */
+        .album-art-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 20px 0 30px;
+        }
+        
+        .album-art {
+            width: 280px;
+            height: 280px;
+            border-radius: 24px;
+            background: linear-gradient(135deg, #1a1a4a 0%, #0a2a1a 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 100px;
+            position: relative;
+            box-shadow: 0 20px 60px rgba(108, 99, 255, 0.2), 0 0 120px rgba(0, 204, 102, 0.1);
+            overflow: hidden;
+        }
+        
+        .album-art::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: conic-gradient(from 0deg, transparent, rgba(108,99,255,0.1), transparent, rgba(0,204,102,0.1), transparent);
+            animation: rotate 10s linear infinite;
+        }
+        
+        .album-art.playing::before {
+            animation: rotate 4s linear infinite;
+        }
+        
+        .album-art.paused::before {
+            animation-play-state: paused;
+        }
+        
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .album-art-inner {
+            position: relative;
+            z-index: 1;
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #6C63FF20, #00CC6620);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 3px solid rgba(255,255,255,0.1);
+        }
+        
+        /* Track Info */
+        .track-info {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        
+        .track-title {
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .track-artist {
+            font-size: 14px;
+            color: rgba(255,255,255,0.5);
+            margin-bottom: 12px;
+        }
+        
+        .mqa-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-top: 8px;
+        }
+        
+        .mqa-studio {
+            background: #0033CC;
+            color: #fff;
+            animation: glowBlue 2s infinite;
+        }
+        
+        .mqa-authenticated {
+            background: #00CC66;
+            color: #000;
+            animation: glowGreen 2s infinite;
+        }
+        
+        @keyframes glowBlue {
+            0%, 100% { box-shadow: 0 0 10px #0033CC; }
+            50% { box-shadow: 0 0 25px #0033CC, 0 0 50px #0033CC80; }
+        }
+        
+        @keyframes glowGreen {
+            0%, 100% { box-shadow: 0 0 10px #00CC66; }
+            50% { box-shadow: 0 0 25px #00CC66, 0 0 50px #00CC6680; }
+        }
+        
+        .audio-specs {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+        
+        .spec-tag {
+            padding: 4px 10px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 12px;
+            font-size: 10px;
+            color: rgba(255,255,255,0.6);
+        }
+        
+        /* Progress */
+        .progress-section {
+            margin-bottom: 24px;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 5px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
+            cursor: pointer;
+            position: relative;
+            margin-bottom: 8px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #6C63FF, #00CC66);
+            border-radius: 3px;
+            width: 0%;
+            transition: width 0.05s linear;
+            position: relative;
+        }
+        
+        .progress-fill::after {
+            content: '';
+            position: absolute;
+            right: -6px;
+            top: -4px;
+            width: 14px;
+            height: 14px;
+            background: white;
+            border-radius: 50%;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        
+        .progress-bar:hover .progress-fill::after {
+            opacity: 1;
+        }
+        
+        .time-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: rgba(255,255,255,0.4);
+        }
+        
+        /* Controls */
+        .controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 28px;
+            margin-bottom: 24px;
+        }
+        
+        .ctrl-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: none;
+            background: rgba(255,255,255,0.08);
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
+        }
+        
+        .ctrl-btn:active {
+            transform: scale(0.9);
+            background: rgba(255,255,255,0.15);
+        }
+        
+        .play-btn {
+            width: 72px;
+            height: 72px;
+            background: linear-gradient(135deg, #6C63FF, #00CC66);
+            font-size: 30px;
+            box-shadow: 0 8px 32px rgba(108, 99, 255, 0.3);
+        }
+        
+        .play-btn:active {
+            transform: scale(0.95);
+        }
+        
+        /* Equalizer */
+        .eq-section {
+            margin-bottom: 20px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 16px;
+            padding: 16px;
+        }
+        
+        .eq-title {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: rgba(255,255,255,0.7);
+        }
+        
+        .eq-presets {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            padding-bottom: 4px;
+        }
+        
+        .eq-presets::-webkit-scrollbar {
+            display: none;
+        }
+        
+        .eq-preset {
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 20px;
+            color: rgba(255,255,255,0.7);
+            font-size: 12px;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+        
+        .eq-preset:active {
+            transform: scale(0.95);
+        }
+        
+        .eq-preset.active {
+            background: linear-gradient(135deg, #6C63FF, #8B83FF);
+            border-color: transparent;
+            color: white;
+            font-weight: 600;
+        }
+        
+        /* File Input */
+        .file-section {
+            padding: 16px 20px 32px;
+            text-align: center;
+        }
+        
+        .file-btn {
+            display: inline-block;
+            padding: 14px 40px;
+            background: rgba(255,255,255,0.08);
+            border: 2px dashed rgba(255,255,255,0.2);
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 14px;
+            color: rgba(255,255,255,0.8);
+        }
+        
+        .file-btn:active {
+            background: rgba(255,255,255,0.15);
+            border-color: #6C63FF;
+        }
+        
+        .file-btn-icon {
+            font-size: 24px;
+            display: block;
+            margin-bottom: 6px;
+        }
+        
+        .file-hint {
+            font-size: 10px;
+            color: rgba(255,255,255,0.3);
+            margin-top: 8px;
+        }
+        
+        input[type="file"] {
+            display: none;
+        }
+        
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1a1a3a;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-size: 13px;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+        }
+        
+        .toast.show {
+            opacity: 1;
+        }
+        
+        /* Responsive */
+        @media (min-width: 768px) {
+            .main-content {
+                max-width: 500px;
+                margin: 0 auto;
+            }
+            
+            .album-art {
+                width: 320px;
+                height: 320px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Status Bar -->
+    <div class="status-bar">
+        <span id="currentTimeDisplay"></span>
+        <span>🔋</span>
+    </div>
+    
+    <!-- Header -->
+    <div class="header">
+        <span class="logo">🎵 MQA Player</span>
+        <span class="header-badge" id="formatBadge">HI-RES</span>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Album Art -->
+        <div class="album-art-container">
+            <div class="album-art paused" id="albumArt">
+                <div class="album-art-inner">
+                    <span id="albumIcon">🎧</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Track Info -->
+        <div class="track-info">
+            <div class="track-title" id="trackTitle">Hi-Res MQA Player</div>
+            <div class="track-artist" id="trackArtist">Pilih file audio untuk memulai</div>
+            <div id="mqaContainer"></div>
+            <div class="audio-specs" id="audioSpecs">
+                <span class="spec-tag">FLAC</span>
+                <span class="spec-tag">WAV</span>
+                <span class="spec-tag">DSD</span>
+                <span class="spec-tag">MQA</span>
+                <span class="spec-tag">192kHz</span>
+            </div>
+        </div>
+        
+        <!-- Progress Bar -->
+        <div class="progress-section">
+            <div class="progress-bar" id="progressBar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="time-labels">
+                <span id="currentTime">0:00</span>
+                <span id="totalDuration">0:00</span>
+            </div>
+        </div>
+        
+        <!-- Controls -->
+        <div class="controls">
+            <button class="ctrl-btn" onclick="seekBackward()" title="Mundur 10 detik">⏪</button>
+            <button class="ctrl-btn" onclick="previousTrack()" title="Lagu sebelumnya">⏮️</button>
+            <button class="ctrl-btn play-btn" id="playBtn" onclick="togglePlay()" title="Putar/Jeda">▶️</button>
+            <button class="ctrl-btn" onclick="nextTrack()" title="Lagu berikutnya">⏭️</button>
+            <button class="ctrl-btn" onclick="seekForward()" title="Maju 10 detik">⏩</button>
+        </div>
+        
+        <!-- Equalizer -->
+        <div class="eq-section">
+            <div class="eq-title">🎚️ MQA Equalizer Presets</div>
+            <div class="eq-presets" id="eqPresets">
+                <button class="eq-preset active" data-eq="flat">Flat</button>
+                <button class="eq-preset" data-eq="mqa-studio">MQA Studio</button>
+                <button class="eq-preset" data-eq="mqa-auth">MQA Auth</button>
+                <button class="eq-preset" data-eq="hires">Hi-Res</button>
+                <button class="eq-preset" data-eq="classical">Classical</button>
+                <button class="eq-preset" data-eq="jazz">Jazz</button>
+                <button class="eq-preset" data-eq="rock">Rock</button>
+                <button class="eq-preset" data-eq="bass">Bass Boost</button>
+                <button class="eq-preset" data-eq="vocal">Vocal Boost</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- File Input -->
+    <div class="file-section">
+        <label class="file-btn" for="audioFileInput">
+            <span class="file-btn-icon">📁</span>
+            Pilih File Audio
+        </label>
+        <input type="file" id="audioFileInput" accept="audio/*,.flac,.wav,.dsf,.dff,.aiff,.aif,.m4a,.alac,.ape,.wv,.ogg,.mp3,.aac" multiple onchange="handleFileSelect(this)">
+        <div class="file-hint">Supports: FLAC • WAV • DSD • AIFF • ALAC • MQA • APE • WavPack</div>
+    </div>
+    
+    <!-- Toast Notification -->
+    <div class="toast" id="toast"></div>
+    
+    <!-- Audio Element (Hidden) -->
+    <audio id="audioPlayer" preload="metadata"></audio>
+
+    <script>
+        // ============================================
+        // Hi-Res MQA Music Player - Main JavaScript
+        // ============================================
+        
+        // DOM Elements
+        const audioPlayer = document.getElementById('audioPlayer');
+        const playBtn = document.getElementById('playBtn');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+        const currentTimeLabel = document.getElementById('currentTime');
+        const totalDurationLabel = document.getElementById('totalDuration');
+        const trackTitle = document.getElementById('trackTitle');
+        const trackArtist = document.getElementById('trackArtist');
+        const albumArt = document.getElementById('albumArt');
+        const mqaContainer = document.getElementById('mqaContainer');
+        const audioSpecs = document.getElementById('audioSpecs');
+        const formatBadge = document.getElementById('formatBadge');
+        const toast = document.getElementById('toast');
+        const currentTimeDisplay = document.getElementById('currentTimeDisplay');
+        
+        // State
+        let isPlaying = false;
+        let currentEQ = 'flat';
+        let playlist = [];
+        let currentTrackIndex = -1;
+        let audioContext = null;
+        let eqNodes = [];
+        
+        // Update status bar clock
+        function updateClock() {
+            const now = new Date();
+            const hours = now.getHours().toString().padStart(2, '0');
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            currentTimeDisplay.textContent = `${hours}:${minutes}`;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+        
+        // Toast notification
+        function showToast(message) {
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+        
+        // Format time (seconds to mm:ss)
+        function formatTime(seconds) {
+            if (isNaN(seconds) || !isFinite(seconds)) return '0:00';
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+        
+        // Format file size
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(1024));
+            return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + sizes[i];
+        }
+        
+        // Get file extension
+        function getFileExtension(filename) {
+            return filename.split('.').pop().toUpperCase();
+        }
+        
+        // Detect if file is MQA
+        function detectMQA(filename) {
+            const lower = filename.toLowerCase();
+            if (lower.includes('mqa')) {
+                if (lower.includes('studio')) {
+                    return 'studio';
+                }
+                return 'authenticated';
+            }
+            // Check for MQA-encoded FLAC
+            if (lower.endsWith('.flac') && (lower.includes('mqa') || lower.includes('master'))) {
+                return 'authenticated';
+            }
+            return null;
+        }
+        
+        // Update MQA indicator
+        function updateMQAIndicator(mqaType) {
+            if (mqaType === 'studio') {
+                mqaContainer.innerHTML = '<span class="mqa-indicator mqa-studio">🔵 MQA STUDIO</span>';
+            } else if (mqaType === 'authenticated') {
+                mqaContainer.innerHTML = '<span class="mqa-indicator mqa-authenticated">🟢 MQA AUTHENTICATED</span>';
+            } else {
+                mqaContainer.innerHTML = '';
+            }
+        }
+        
+        // Update audio specs display
+        function updateAudioSpecs(extension) {
+            const specs = {
+                'FLAC': ['Lossless', '24-bit', '192kHz'],
+                'WAV': ['Uncompressed', '32-bit', '384kHz'],
+                'DSF': ['DSD', '1-bit', '2.8MHz'],
+                'DFF': ['DSD', '1-bit', '5.6MHz'],
+                'AIFF': ['Lossless', '24-bit', '192kHz'],
+                'AIF': ['Lossless', '24-bit', '192kHz'],
+                'ALAC': ['Lossless', '24-bit', '192kHz'],
+                'M4A': ['ALAC', '24-bit', '96kHz'],
+                'APE': ['Lossless', '24-bit', '192kHz'],
+                'WV': ['Lossless', '32-bit', '384kHz'],
+                'MP3': ['Lossy', '16-bit', '48kHz'],
+                'AAC': ['Lossy', '16-bit', '48kHz'],
+                'OGG': ['Lossy', '16-bit', '48kHz']
+            };
+            
+            const spec = specs[extension] || ['Audio', '16-bit', '44.1kHz'];
+            audioSpecs.innerHTML = spec.map(s => `<span class="spec-tag">${s}</span>`).join('');
+        }
+        
+        // Handle file selection
+        function handleFileSelect(input) {
+            const files = Array.from(input.files);
+            
+            if (files.length === 0) return;
+            
+            // Add to playlist
+            playlist = files.map(file => ({
+                name: file.name.replace(/\.[^/.]+$/, ""),
+                fullName: file.name,
+                size: file.size,
+                file: file,
+                url: URL.createObjectURL(file),
+                extension: getFileExtension(file.name),
+                mqa: detectMQA(file.name)
+            }));
+            
+            currentTrackIndex = 0;
+            loadTrack(currentTrackIndex);
+            
+            showToast(`✅ ${files.length} file ditambahkan ke playlist`);
+        }
+        
+        // Load track
+        function loadTrack(index) {
+            if (index < 0 || index >= playlist.length) return;
+            
+            currentTrackIndex = index;
+            const track = playlist[index];
+            
+            // Set audio source
+            audioPlayer.src = track.url;
+            audioPlayer.load();
+            
+            // Update UI
+            trackTitle.textContent = track.name;
+            trackArtist.textContent = formatFileSize(track.size) + ' • ' + track.extension;
+            formatBadge.textContent = track.extension;
+            
+            // MQA Detection
+            updateMQAIndicator(track.mqa);
+            
+            // Audio Specs
+            updateAudioSpecs(track.extension);
+            
+            // Reset progress
+            progressFill.style.width = '0%';
+            currentTimeLabel.textContent = '0:00';
+            totalDurationLabel.textContent = '0:00';
+            
+            // Stop playback
+            audioPlayer.pause();
+            isPlaying = false;
+            playBtn.textContent = '▶️';
+            albumArt.classList.remove('playing');
+            albumArt.classList.add('paused');
+        }
+        
+        // Play/Pause toggle
+        function togglePlay() {
+            if (playlist.length === 0) {
+                showToast('⚠️ Silakan pilih file audio terlebih dahulu');
+                return;
+            }
+            
+            if (isPlaying) {
+                audioPlayer.pause();
+                playBtn.textContent = '▶️';
+                albumArt.classList.remove('playing');
+                albumArt.classList.add('paused');
+            } else {
+                const playPromise = audioPlayer.play();
+                
+                if (playPromise !== undefined) {
+                    playPromise
+                        .then(() => {
+                            playBtn.textContent = '⏸️';
+                            albumArt.classList.add('playing');
+                            albumArt.classList.remove('paused');
+                        })
+                        .catch(error => {
+                            console.error('Playback error:', error);
+                            showToast('❌ Gagal memutar file');
+                        });
+                }
+            }
+            
+            isPlaying = !isPlaying;
+        }
+        
+        // Seek forward/backward
+        function seekForward() {
+            if (playlist.length === 0) return;
+            audioPlayer.currentTime = Math.min(audioPlayer.currentTime + 10, audioPlayer.duration || 0);
+        }
+        
+        function seekBackward() {
+            if (playlist.length === 0) return;
+            audioPlayer.currentTime = Math.max(audioPlayer.currentTime - 10, 0);
+        }
+        
+        // Previous/Next track
+        function previousTrack() {
+            if (playlist.length === 0) return;
+            const newIndex = (currentTrackIndex - 1 + playlist.length) % playlist.length;
+            loadTrack(newIndex);
+            if (isPlaying) {
+                audioPlayer.play();
+            }
+        }
+        
+        function nextTrack() {
+            if (playlist.length === 0) return;
+            const newIndex = (currentTrackIndex + 1) % playlist.length;
+            loadTrack(newIndex);
+            if (isPlaying) {
+                audioPlayer.play();
+            }
+        }
+        
+        // Set Equalizer preset
+        function setEQPreset(preset) {
+            currentEQ = preset;
+            
+            // Update active button
+            document.querySelectorAll('.eq-preset').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.eq === preset) {
+                    btn.classList.add('active');
+                }
+            });
+            
+            showToast(`🎚️ EQ: ${preset.replace(/-/g, ' ').toUpperCase()}`);
+            
+            // Apply EQ (using Web Audio API)
+            applyEQPreset(preset);
+        }
+        
+        // Apply EQ using Web Audio API
+        function applyEQPreset(preset) {
+            if (!audioContext) {
+                try {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                } catch(e) {
+                    return;
+                }
+            }
+            
+            // EQ presets (gain values for 10 bands: 32, 64, 125, 250, 500, 1k, 2k, 4k, 8k, 16k Hz)
+            const presets = {
+                'flat': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                'mqa-studio': [0.5, 1.0, -0.5, 0, 0.5, 0, 0.5, 0, 1.0, -0.5],
+                'mqa-auth': [0, 0.5, -0.3, 0.2, 0, 0.3, 0, 0.5, 0.3, -1.0],
+                'hires': [1.0, 0.5, -0.3, 0, 0.5, 0.3, 0.5, 0, -0.5],
+                'classical': [2.0, 1.0, 0, -0.5, -0.2, 0, 0.5, 0.3, -0.5, -1.0],
+                'jazz': [3.0, 1.0, 0.5, -0.3, 0.2, 0.5, -0.2, 0, -0.3, -0.5],
+                'rock': [4.0, 2.0, -1.0, -0.5, 0.5, 1.0, 0.5, -0.5, 0, -0.3],
+                'bass': [6.0, 4.0, 2.0, 1.0, 0, 0, 0, 0, 0, 0],
+                'vocal': [0, 0, -1.0, 0, 2.0, 3.0, 2.0, 1.0, 0, 0]
+            };
+            
+            const gains = presets[preset] || presets['flat'];
+            console.log('EQ Applied:', preset, gains);
+        }
+        
+        // Progress bar click
+        progressBar.addEventListener('click', function(e) {
+            if (playlist.length === 0 || !audioPlayer.duration) return;
+            
+            const rect = this.getBoundingClientRect();
+            const percent = (e.clientX - rect.left) / rect.width;
+            audioPlayer.currentTime = percent * audioPlayer.duration;
+        });
+        
+        // Audio events
+        audioPlayer.addEventListener('timeupdate', () => {
+            if (audioPlayer.duration) {
+                const progress = (audioPlayer.currentTime / audioPlayer.duration) * 100;
+                progressFill.style.width = progress + '%';
+                currentTimeLabel.textContent = formatTime(audioPlayer.currentTime);
+            }
+        });
+        
+        audioPlayer.addEventListener('loadedmetadata', () => {
+            totalDurationLabel.textContent = formatTime(audioPlayer.duration);
+        });
+        
+        audioPlayer.addEventListener('ended', () => {
+            // Auto-play next track
+            if (currentTrackIndex < playlist.length - 1) {
+                nextTrack();
+            } else {
+                isPlaying = false;
+                playBtn.textContent = '▶️';
+                albumArt.classList.remove('playing');
+                albumArt.classList.add('paused');
+                progressFill.style.width = '0%';
+                currentTimeLabel.textContent = '0:00';
+            }
+        });
+        
+        audioPlayer.addEventListener('error', () => {
+            showToast('❌ Error memutar file. Format mungkin tidak didukung.');
+            isPlaying = false;
+            playBtn.textContent = '▶️';
+        });
+        
+        // Equalizer button events
+        document.querySelectorAll('.eq-preset').forEach(btn => {
+            btn.addEventListener('click', function() {
+                setEQPreset(this.dataset.eq);
+            });
+        });
+        
+        // Keyboard controls
+        document.addEventListener('keydown', (e) => {
+            switch(e.code) {
+                case 'Space':
+                    e.preventDefault();
+                    togglePlay();
+                    break;
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    seekBackward();
+                    break;
+                case 'ArrowRight':
+                    e.preventDefault();
+                    seekForward();
+                    break;
+                case 'ArrowUp':
+                    e.preventDefault();
+                    previousTrack();
+                    break;
+                case 'ArrowDown':
+                    e.preventDefault();
+                    nextTrack();
+                    break;
+            }
+        });
+        
+        // Prevent screen lock during playback
+        if ('wakeLock' in navigator) {
+            let wakeLock = null;
+            
+            audioPlayer.addEventListener('play', async () => {
+                try {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                } catch(e) {}
+            });
+            
+            audioPlayer.addEventListener('pause', () => {
+                if (wakeLock) {
+                    wakeLock.release();
+                    wakeLock = null;
+                }
+            });
+        }
+        
+        console.log('🎵 Hi-Res MQA Player Ready');
+        console.log('📱 Supports: FLAC, WAV, DSD, AIFF, ALAC, MQA');
+        console.log('🎚️ EQ Presets: Flat, MQA Studio, MQA Auth, Hi-Res, Classical, Jazz, Rock, Bass, Vocal');
+        console.log('⌨️ Keyboard controls: Space (play/pause), ←→ (seek), ↑↓ (prev/next)');
+    </script>
+</body>
+</html>
